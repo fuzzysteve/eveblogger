@@ -17,6 +17,7 @@
             <li><a href="/feed.php">7 Day Feed</a><li>
             <li><a href="/recent.php">7 Day Page</a><li>
             <li><a href="/add.php">Add Blog</a><li>
+            <li><a href="/opml.php">OPML</a></li>
           </ul>
          <form class="navbar-form navbar-right" action="/search.php" method=POST>
          <div class="form-group">
