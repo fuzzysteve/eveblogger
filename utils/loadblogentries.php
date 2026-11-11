@@ -1,6 +1,8 @@
 <?php
 /**
  * Polls every approved feed and stores posts newer than the blog's lastupdate.
+ * Active blogs (approved 1/-1) every run; dormant ones (approved 3) once a week, and a dormant
+ * blog that posts again is switched back to active.
  * Run from cron via run.sh; progress and errors go to stdout for the log file.
  */
 declare(strict_types=1);
@@ -13,6 +15,7 @@ require __DIR__ . '/../vendor/autoload.php';
 const FEED_TIMEOUT = 10;      // seconds per feed fetch
 const SUMMARY_LENGTH = 255;   // characters kept from the post description
 const CACHE_DIR = __DIR__ . '/../cache/simplepie';
+const DORMANT_DAYS = 7;       // dormant blogs (approved = 3) are checked this often
 const CACHE_SECONDS = 1500;   // < the 30-minute cron, so every run revalidates (ETag / Last-Modified)
 
 function logline(string $msg): void
@@ -46,9 +49,15 @@ $dbh = eb_db();
 @mkdir(CACHE_DIR, 0750, true);
 
 $feeds = $dbh->query(
-    'select id, feedurl, url, name, owner, allowed_hosts, extract(epoch from lastupdate)::bigint as lastupdate
-       from blogs_real where approved in (1, -1) and held_reason is null order by id'
+    'select id, feedurl, url, name, owner, allowed_hosts, approved, extract(epoch from lastupdate)::bigint as lastupdate
+       from blogs_real
+      where held_reason is null
+        and (approved in (1, -1)
+             or (approved = 3 and (last_checked is null or last_checked < now() - interval \'' . DORMANT_DAYS . ' days\')))
+      order by id'
 )->fetchAll(PDO::FETCH_OBJ);
+$checkedStmt = $dbh->prepare('update blogs_real set last_checked = now() where id = :feed');
+$reviveStmt = $dbh->prepare('update blogs_real set approved = 1 where id = :feed and approved = 3');
 
 // Hosts each blog's past posts have linked to, so a blog that moved (http->https, new domain)
 // years ago isn't flagged for it now.
@@ -90,6 +99,7 @@ $totalAdded = 0;
 $failedFeeds = 0;
 
 foreach ($feeds as $feed) {
+    $checkedStmt->execute([':feed' => $feed->id]);   // fetched now, whatever the outcome
     try {
         $rss = new \SimplePie\SimplePie();
         $rss->set_feed_url($feed->feedurl);
@@ -209,6 +219,11 @@ foreach ($feeds as $feed) {
         }
         if ($added > 0) {
             logline("OK    #{$feed->id} {$feed->name}: {$added} new");
+            if ((int) $feed->approved === 3) {
+                $reviveStmt->execute([':feed' => $feed->id]);
+                logline("REVIVE #{$feed->id} {$feed->name}: posted again, dormant -> active");
+                eb_alert("Dormant blog #{$feed->id} **{$feed->name}** posted again ({$added} new); it's active (checked every 30 minutes) again.");
+            }
         }
         $totalAdded += $added;
     } catch (Throwable $e) {

@@ -75,7 +75,8 @@ approve or reject them in `admin.php`.
 | `approved` | Polled by the loader | Shown on the site |
 | --- | --- | --- |
 | `0` | no | no (pending) |
-| `1` | yes | yes |
+| `1` | yes, every run | yes |
+| `3` | yes, weekly (dormant: still exists, rarely posts; back to `1` automatically when it posts) | yes |
 | `2` | no | yes (retired: dead feed, old posts kept) |
 | `-1` | yes | no |
 | `-2` | no | no (rejected submission / spam) |

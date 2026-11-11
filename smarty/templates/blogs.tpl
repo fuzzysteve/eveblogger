@@ -1,6 +1,6 @@
 {include file="header.tpl" title="All blogs - Eve Bloggers"}
 <h1 class="h4">All blogs</h1>
-<p>Every blog evebloggers.com has followed, most recently active first. Retired blogs' feeds have gone away, but their old posts are kept.
+<p>Every blog evebloggers.com has followed, most recently active first. Dormant blogs rarely post and are checked weekly; retired blogs' feeds have gone away, but their old posts are kept.
   The <a href="/opml.php">OPML file</a> has the active feeds for your reader.</p>
 <div class="table-responsive">
 <table class="table table-sm table-hover align-middle">
@@ -12,7 +12,7 @@
       <td>{$blog.owner}</td>
       <td class="text-end">{$blog.posts}</td>
       <td class="text-nowrap">{$blog.last_post_text|default:'-'}</td>
-      <td>{if $blog.active}<span class="badge text-bg-success">active</span>{else}<span class="badge text-bg-secondary">retired</span>{/if}</td>
+      <td>{if $blog.status == 'active'}<span class="badge text-bg-success">active</span>{elseif $blog.status == 'dormant'}<span class="badge text-bg-info" title="Rarely posts; checked weekly">dormant</span>{else}<span class="badge text-bg-secondary">retired</span>{/if}</td>
     </tr>
   {/foreach}
   </tbody>

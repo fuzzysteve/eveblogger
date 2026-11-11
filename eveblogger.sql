@@ -101,7 +101,8 @@ CREATE TABLE public.blogs_real (
     approved integer DEFAULT 0,
     held_reason text,
     held_since timestamp with time zone,
-    allowed_hosts text[] DEFAULT '{}'::text[] NOT NULL
+    allowed_hosts text[] DEFAULT '{}'::text[] NOT NULL,
+    last_checked timestamp with time zone
 );
 
 
@@ -117,6 +118,13 @@ COMMENT ON COLUMN public.blogs_real.held_reason IS 'Set by the loader when a fee
 --
 
 COMMENT ON COLUMN public.blogs_real.allowed_hosts IS 'Extra link hosts accepted for this blog (beyond its url/feedurl and past post links)';
+
+
+--
+-- Name: COLUMN blogs_real.last_checked; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.blogs_real.last_checked IS 'When the loader last fetched this feed (successfully or not); dormant blogs (approved=3) are fetched when this is over a week old';
 
 
 --

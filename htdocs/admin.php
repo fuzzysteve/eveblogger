@@ -14,18 +14,45 @@ session_name('ebadmin');
 session_set_cookie_params(['lifetime' => 0, 'path' => '/admin.php', 'secure' => true, 'httponly' => true, 'samesite' => 'Strict']);
 session_start();
 
-const STATUSES = [1 => 'active', 2 => 'retired', 0 => 'pending', -1 => 'polled, hidden', -2 => 'rejected'];
+const STATUSES = [
+    1 => 'active', 3 => 'dormant (weekly)', 2 => 'retired', 0 => 'pending', -1 => 'polled, hidden', -2 => 'rejected',
+];
+
+// Sortable columns of the blog table: ?sort=key&dir=asc|desc. Only these SQL expressions are used.
+const SORTS = [
+    'id'      => 'b.id',
+    'name'    => 'lower(b.name)',
+    'last'    => 'max(e."pubDate")',
+    'checked' => 'b.last_checked',
+    'status'  => 'b.approved',
+];
+
+/** Validated [filter, sort, dir] from a request array ($_GET or $_POST). */
+function table_state(array $in): array
+{
+    $filter = isset($in['status']) && is_numeric($in['status']) && array_key_exists((int) $in['status'], STATUSES)
+        ? (int) $in['status'] : null;
+    $sort = isset($in['sort']) && array_key_exists($in['sort'], SORTS) ? $in['sort'] : null;
+    $dir = ($in['dir'] ?? '') === 'asc' ? 'asc' : 'desc';
+    return [$filter, $sort, $dir];
+}
+
+/** Query string for the blog table in a given state ('' when everything is default). */
+function table_qs(?int $filter, ?string $sort, string $dir): string
+{
+    $q = array_filter(['status' => $filter, 'sort' => $sort, 'dir' => $sort ? $dir : null], fn($v) => $v !== null);
+    return $q ? '?' . http_build_query($q) : '';
+}
 
 function redirect_self(string $flash = ''): never
 {
     if ($flash !== '') {
         $_SESSION['flash'] = $flash;
     }
-    // Return to the status filter the form was submitted from, if any.
-    $filter = $_POST['filter'] ?? '';
-    $target = '/admin.php' . (is_numeric($filter) && array_key_exists((int) $filter, STATUSES)
-        ? '?status=' . (int) $filter . '#blogs' : '');
-    header('Location: ' . $target, true, 303);
+    // Return to the filter/sort the form was submitted from.
+    [$filter, $sort, $dir] = table_state(['status' => $_POST['filter'] ?? null] + $_POST);
+    $qs = table_qs($filter, $sort, $dir);
+    header('Location: /admin.php' . $qs . ($qs ? '#blogs' : ''), true, 303);
     exit;
 }
 
@@ -138,19 +165,23 @@ if ($lastRun) {
     }
 }
 
-// "All blogs" table, optionally filtered by status (?status=N).
-$filter = isset($_GET['status']) && is_numeric($_GET['status']) && array_key_exists((int) $_GET['status'], STATUSES)
-    ? (int) $_GET['status'] : null;
+// "All blogs" table: optional ?status=N filter and ?sort=&dir= ordering.
+[$filter, $sort, $dir] = table_state($_GET);
 $statusCounts = array_fill_keys(array_keys(STATUSES), 0);
 foreach ($dbh->query('select approved, count(*) from blogs_real group by approved') as [$status, $count]) {
     $statusCounts[(int) $status] = (int) $count;   // unknown statuses still count towards "all"
 }
+$order = $sort
+    ? SORTS[$sort] . ' ' . $dir . ' nulls last, b.id'
+    : 'b.approved = 1 desc, max(e."pubDate") desc nulls last, b.id';   // default: active first, newest post first
 $blogsStmt = $dbh->prepare(
     "select b.id, b.name, b.url, b.feedurl, b.approved,
-            to_char(max(e.\"pubDate\") at time zone 'UTC', 'DD-Mon-YYYY') as last_post
+            to_char(max(e.\"pubDate\") at time zone 'UTC', 'DD-Mon-YYYY') as last_post,
+            to_char(b.last_checked at time zone 'UTC', 'DD-Mon HH24:MI') as checked
        from blogs_real b left join blog_entries e on e.blog = b.id
       where (:filter::int is null or b.approved = :filter::int)
-      group by b.id order by b.approved = 1 desc, max(e.\"pubDate\") desc nulls last"
+      group by b.id
+      order by $order"
 );
 $blogsStmt->execute([':filter' => $filter]);
 $blogs = $blogsStmt->fetchAll(PDO::FETCH_ASSOC);
@@ -169,6 +200,18 @@ $smarty->assign([
     'blogs'    => $blogs,
     'statuses' => STATUSES,
     'filter'   => $filter,
+    'sort'     => $sort,
+    'dir'      => $dir,
+    // Header links: click to sort by a column; click the sorted column again to reverse it.
+    // Dates default to newest first, text and numbers to ascending.
+    'sortlinks' => array_map(
+        fn($key) => table_qs($filter, $key, $sort === $key ? ($dir === 'asc' ? 'desc' : 'asc')
+            : (in_array($key, ['last', 'checked'], true) ? 'desc' : 'asc')),
+        array_combine(array_keys(SORTS), array_keys(SORTS))
+    ),
+    // Filter links keep the current sort.
+    'filterlinks' => array_map(fn($st) => table_qs($st, $sort, $dir), array_combine(array_keys(STATUSES), array_keys(STATUSES))),
+    'alllink'  => table_qs(null, $sort, $dir),
     'counts'   => $statusCounts,
     'total'    => array_sum($statusCounts),
 ]);

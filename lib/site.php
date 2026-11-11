@@ -227,7 +227,7 @@ function blog_directory(PDO $dbh): array
         SQL)->fetchAll(PDO::FETCH_ASSOC);
     foreach ($rows as &$row) {
         $row['url'] = safe_url($row['url']);
-        $row['active'] = (int) $row['approved'] === 1;
+        $row['status'] = match ((int) $row['approved']) { 1 => 'active', 3 => 'dormant', default => 'retired' };
     }
     return $rows;
 }
