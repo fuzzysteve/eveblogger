@@ -1,6 +1,6 @@
 <?php
 /**
- * Shared page logic: blog listings (home / CSM pages) and RSS feeds.
+ * Shared page logic: the home page blog listing and RSS feeds.
  * Page scripts in htdocs/ are thin wrappers around these.
  */
 require_once __DIR__ . '/bootstrap.php';
@@ -72,21 +72,19 @@ function render_listing(Smarty\Smarty $smarty, string $cacheId, string $intro, i
 
 /**
  * Render a cached RSS 2.0 feed.
- *   $opts: title, description, self (feed URL), days, csm (bool), lite (bool: omit full content)
+ *   $opts: title, description, self (feed URL), days, lite (bool: omit full content)
  */
 function render_feed(Smarty\Smarty $smarty, string $cacheId, array $opts): void
 {
     header('Content-Type: application/rss+xml; charset=UTF-8');
     $smarty->setCacheLifetime(1800);
     if (!$smarty->isCached('feed.tpl', $cacheId)) {
-        $csmJoin = !empty($opts['csm']) ? 'join csmblog c on c.blogid = e.blog' : '';
         $content = !empty($opts['lite']) ? "''" : 'e.content';
         $stmt = eb_db()->prepare(<<<SQL
             select e.link, e.title, e.author, e.description, $content as content,
                    to_char(e."pubDate" at time zone 'UTC', 'Dy, DD Mon YYYY HH24:MI:SS "+0000"') as pubdate
               from blog_entries e
               join blogs b on b.id = e.blog
-              $csmJoin
              where e."pubDate" > now() - make_interval(days => :days)
              order by e."pubDate" desc
             SQL);
