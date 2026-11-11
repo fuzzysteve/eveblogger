@@ -13,6 +13,7 @@ feeds and shows their latest posts, plus combined RSS feeds and an OPML file.
 | `smarty/templates/` | Smarty templates. Output is HTML-escaped by default (`nofilter` opts out). |
 | `utils/loadblogentries.php` | Feed poller. `utils/run.sh` runs it from cron and logs to `logs/loader/`. |
 | `eveblogger.sql` | Schema (`pg_dump --schema-only`). |
+| `conf/apache/` | Copies of the live vhost (`/etc/apache2/sites-available/evebloggers.conf` + `evebloggers-site.inc`). |
 
 ## Setup
 
@@ -28,6 +29,21 @@ psql -d eveblogger -f eveblogger.sql
 
 The web server's document root is `htdocs/`. `smarty/templates_c/` and `smarty/cache/`
 must be writable by the web server user.
+
+The site is served through Cloudflare. Apache needs `mod_remoteip` (real visitor IPs from
+`CF-Connecting-IP`), `mod_headers` and `mod_ssl`; see `conf/apache/`. The HTTPS vhost turns on
+once the origin certificate exists:
+
+```sh
+/root/.acme.sh/acme.sh --issue --server letsencrypt -d evebloggers.com -d www.evebloggers.com \
+    -w /home/web/evebloggers/htdocs
+/root/.acme.sh/acme.sh --install-cert -d evebloggers.com \
+    --key-file       /home/web/conf/ssl/acmesh/evebloggers.com.key \
+    --fullchain-file /home/web/conf/ssl/acmesh/evebloggers.com.fullchain.cer \
+    --reloadcmd      "apache2ctl configtest && apache2ctl graceful"
+```
+
+then set Cloudflare's SSL/TLS mode to **Full (strict)**.
 
 Cron, e.g. twice an hour:
 

@@ -1,18 +1,33 @@
-{include file="header.tpl" title="Eve Bloggers"}
-
+{include file="header.tpl" title="Add a blog - Eve Bloggers"}
+<h1 class="h3 mb-3">Add a blog</h1>
 {if $errors}
-<div class="alert alert-danger"><ul>{foreach $errors as $error}<li>{$error}</li>{/foreach}</ul></div>
+<div class="alert alert-danger"><ul class="mb-0">{foreach $errors as $error}<li>{$error}</li>{/foreach}</ul></div>
 {/if}
-<form action="add.php" method="POST">
-<table>
-<tr><td><label for="blogtitle">Blog Title</label></td><td><input name="blogtitle" id="blogtitle" type="text" required maxlength="200" value="{$form.blogtitle|default:''}" placeholder="The title of your blog" size="80"></td></tr>
-<tr><td><label for="author">Primary Author</label></td><td><input name="author" id="author" type="text" required maxlength="200" value="{$form.author|default:''}" placeholder="This gets used if your RSS doesn't attribute posts." size="80"></td></tr>
-<tr><td><label for="url">URL</label></td><td><input name="url" id="url" type="url" maxlength="255" value="{$form.url|default:''}" placeholder="The base address of your site. e.g. https://evebloggers.com/" size="80"></td></tr>
-<tr><td><label for="feedurl">Feed URL</label></td><td><input name="feedurl" id="feedurl" type="url" required maxlength="255" value="{$form.feedurl|default:''}" placeholder="Where to find the RSS on your site. e.g. https://evebloggers.com/blog/feed/" size="80"></td></tr>
-<tr><td><label for="description">Description</label></td><td><input name="description" id="description" type="text" maxlength="255" value="{$form.description|default:''}" placeholder="A line about what you write." size="80"></td></tr>
-</table>
-<div class="g-recaptcha" data-sitekey="{$recaptcha_site_key}"></div>
-<input type="submit" name="submit" value="Add Blog">
+<form action="add.php" method="POST" class="col-lg-8">
+  <div class="mb-3">
+    <label for="blogtitle" class="form-label">Blog title</label>
+    <input name="blogtitle" id="blogtitle" type="text" class="form-control" required maxlength="200" value="{$form.blogtitle|default:''}" placeholder="The title of your blog">
+  </div>
+  <div class="mb-3">
+    <label for="author" class="form-label">Primary author</label>
+    <input name="author" id="author" type="text" class="form-control" required maxlength="200" value="{$form.author|default:''}">
+    <div class="form-text">Used when your feed doesn't name a post's author.</div>
+  </div>
+  <div class="mb-3">
+    <label for="url" class="form-label">Site URL</label>
+    <input name="url" id="url" type="url" class="form-control" maxlength="255" value="{$form.url|default:''}" placeholder="https://example.com/">
+  </div>
+  <div class="mb-3">
+    <label for="feedurl" class="form-label">Feed URL</label>
+    <input name="feedurl" id="feedurl" type="url" class="form-control" required maxlength="255" value="{$form.feedurl|default:''}" placeholder="https://example.com/feed/">
+    <div class="form-text">The RSS or Atom feed for your posts.</div>
+  </div>
+  <div class="mb-3">
+    <label for="description" class="form-label">Description</label>
+    <input name="description" id="description" type="text" class="form-control" maxlength="255" value="{$form.description|default:''}" placeholder="A line about what you write">
+  </div>
+  <div class="g-recaptcha mb-3" data-sitekey="{$recaptcha_site_key}"></div>
+  <button type="submit" name="submit" value="Add Blog" class="btn btn-primary">Add blog</button>
 </form>
-<script src="https://www.google.com/recaptcha/api.js"></script>
+<script src="https://www.google.com/recaptcha/api.js" async defer></script>
 {include file="footer.tpl"}

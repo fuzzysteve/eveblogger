@@ -1,27 +1,20 @@
-<div id="wrap">
-<div class="navbar navbar-default navbar-static-top" role="navigation">
-      <div class="container">
-        <div class="navbar-header">
-          <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
-            <span class="sr-only">Toggle navigation</span>
-            <span class="icon-bar"></span>
-            <span class="icon-bar"></span>
-            <span class="icon-bar"></span>
-          </button>
-          <a class="navbar-brand" href="/">Eve Bloggers</a>
-        </div>
-        <div class="navbar-collapse collapse">
-          <ul class="nav navbar-nav">
-            <li><a href="/">Home</a></li>
-            <li><a href="/feed.php">7 Day Feed</a></li>
-            <li><a href="/lite.php">7 Day Light Feed</a></li>
-            <li><a href="/recent.php">7 Day Page</a></li>
-            <li><a href="/add.php">Add Blog</a></li>
-            <li><a href="/opml.php">OPML</a></li>
-          </ul>
-
-        </div><!--/.nav-collapse -->
-   </div>
-</div>
-    <div class="container">
-
+<nav class="navbar navbar-expand-lg bg-body border-bottom mb-4">
+  <div class="container">
+    <a class="navbar-brand" href="/">Eve Bloggers</a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainnav"
+            aria-controls="mainnav" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="mainnav">
+      <ul class="navbar-nav">
+        <li class="nav-item"><a class="nav-link" href="/">Home</a></li>
+        <li class="nav-item"><a class="nav-link" href="/recent.php">7 Day Page</a></li>
+        <li class="nav-item"><a class="nav-link" href="/feed.php">7 Day Feed</a></li>
+        <li class="nav-item"><a class="nav-link" href="/lite.php">7 Day Light Feed</a></li>
+        <li class="nav-item"><a class="nav-link" href="/opml.php">OPML</a></li>
+        <li class="nav-item"><a class="nav-link" href="/add.php">Add Blog</a></li>
+      </ul>
+    </div>
+  </div>
+</nav>
+<main class="container flex-grow-1">

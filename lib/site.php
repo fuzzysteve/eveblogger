@@ -5,7 +5,7 @@
  */
 require_once __DIR__ . '/bootstrap.php';
 
-const SITE_URL = 'http://evebloggers.com/';
+const SITE_URL = 'https://evebloggers.com/';
 
 /** Only http(s) links reach a page or feed; anything else (javascript:, data:, junk) becomes ''. */
 function safe_url(?string $url): string
