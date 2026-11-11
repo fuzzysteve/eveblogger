@@ -21,7 +21,11 @@ function redirect_self(string $flash = ''): never
     if ($flash !== '') {
         $_SESSION['flash'] = $flash;
     }
-    header('Location: /admin.php', true, 303);
+    // Return to the status filter the form was submitted from, if any.
+    $filter = $_POST['filter'] ?? '';
+    $target = '/admin.php' . (is_numeric($filter) && array_key_exists((int) $filter, STATUSES)
+        ? '?status=' . (int) $filter . '#blogs' : '');
+    header('Location: ' . $target, true, 303);
     exit;
 }
 
@@ -134,12 +138,22 @@ if ($lastRun) {
     }
 }
 
-$blogs = $dbh->query(
+// "All blogs" table, optionally filtered by status (?status=N).
+$filter = isset($_GET['status']) && is_numeric($_GET['status']) && array_key_exists((int) $_GET['status'], STATUSES)
+    ? (int) $_GET['status'] : null;
+$statusCounts = array_fill_keys(array_keys(STATUSES), 0);
+foreach ($dbh->query('select approved, count(*) from blogs_real group by approved') as [$status, $count]) {
+    $statusCounts[(int) $status] = (int) $count;   // unknown statuses still count towards "all"
+}
+$blogsStmt = $dbh->prepare(
     "select b.id, b.name, b.url, b.feedurl, b.approved,
             to_char(max(e.\"pubDate\") at time zone 'UTC', 'DD-Mon-YYYY') as last_post
        from blogs_real b left join blog_entries e on e.blog = b.id
+      where (:filter::int is null or b.approved = :filter::int)
       group by b.id order by b.approved = 1 desc, max(e.\"pubDate\") desc nulls last"
-)->fetchAll(PDO::FETCH_ASSOC);
+);
+$blogsStmt->execute([':filter' => $filter]);
+$blogs = $blogsStmt->fetchAll(PDO::FETCH_ASSOC);
 foreach ($blogs as &$b) {
     $b['url'] = safe_url($b['url']);
 }
@@ -154,6 +168,9 @@ $smarty->assign([
     'failing'  => array_values($failing),
     'blogs'    => $blogs,
     'statuses' => STATUSES,
+    'filter'   => $filter,
+    'counts'   => $statusCounts,
+    'total'    => array_sum($statusCounts),
 ]);
 unset($_SESSION['flash']);
 $smarty->display('admin.tpl');

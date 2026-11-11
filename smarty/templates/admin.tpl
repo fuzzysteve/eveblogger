@@ -71,7 +71,13 @@
 </table></div>
 {else}<p class="small">None.</p>{/if}
 
-<h2 class="h5 mt-4">All blogs <span class="badge text-bg-secondary">{$blogs|count}</span></h2>
+<h2 class="h5 mt-4" id="blogs">{if $filter === null}All blogs{else}Blogs: {$statuses[$filter]}{/if} <span class="badge text-bg-secondary">{$blogs|count}</span></h2>
+<nav class="nav nav-pills small mb-2" aria-label="Filter blogs by status">
+  <a class="nav-link py-1 px-2{if $filter === null} active{/if}" href="/admin.php#blogs"{if $filter === null} aria-current="page"{/if}>All <span class="opacity-75">{$total}</span></a>
+  {foreach $statuses as $value => $label}
+  <a class="nav-link py-1 px-2{if $filter === $value} active{/if}" href="/admin.php?status={$value}#blogs"{if $filter === $value} aria-current="page"{/if}>{$label} <span class="opacity-75">{$counts[$value]}</span></a>
+  {/foreach}
+</nav>
 <div class="table-responsive"><table class="table table-sm table-hover align-middle">
   <thead><tr><th>#</th><th>Blog</th><th>Last post</th><th>Status</th></tr></thead>
   <tbody>
@@ -83,6 +89,7 @@
       <td>
         <form method="post" action="/admin.php" class="d-flex gap-1">
           <input type="hidden" name="csrf" value="{$csrf}"><input type="hidden" name="action" value="status"><input type="hidden" name="id" value="{$b.id}">
+          {if $filter !== null}<input type="hidden" name="filter" value="{$filter}">{/if}
           <select name="status" class="form-select form-select-sm" aria-label="Status for #{$b.id}">
             {foreach $statuses as $value => $label}<option value="{$value}"{if $value == $b.approved} selected{/if}>{$label}</option>{/foreach}
           </select>
@@ -90,6 +97,8 @@
         </form>
       </td>
     </tr>
+  {foreachelse}
+    <tr><td colspan="4" class="small">No blogs with this status.</td></tr>
   {/foreach}
   </tbody>
 </table></div>
