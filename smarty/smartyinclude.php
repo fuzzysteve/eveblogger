@@ -11,3 +11,4 @@ $smarty->setCacheDir(__DIR__ . '/cache');
 $smarty->setConfigDir(__DIR__ . '/configs');
 
 $smarty->setCaching(Smarty::CACHING_LIFETIME_SAVED);
+$smarty->setEscapeHtml(true);   // templates opt out per-variable with nofilter

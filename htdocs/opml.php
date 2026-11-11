@@ -1,26 +1,19 @@
 <?php
-header('Content-Type: text/xml;charset=UTF-8');
-require("header.php");
-require("/home/web/evebloggers/smarty/smartyinclude.php");
+require __DIR__ . '/header.php';
+require __DIR__ . '/../smarty/smartyinclude.php';
+require __DIR__ . '/../lib/site.php';
+
+header('Content-Type: text/x-opml; charset=UTF-8');
 $smarty->setCacheLifetime(300);
-require("dbpost.inc.php");
-
-
-$sql=<<<EOS
-select feedurl,name from blogs where approved=1
-EOS;
-
-$stmt = $dbh->prepare($sql);
-
-$stmt->execute();
-
-$feeds=array();
-while ($row = $stmt->fetchObject()) {
-    $feeds[]=array("feedurl"=>$row->feedurl, "name"=>filter_var($row->name, FILTER_SANITIZE_SPECIAL_CHARS, array('flags'=>FILTER_FLAG_STRIP_LOW)));
+if (!$smarty->isCached('opml.tpl')) {
+    $feeds = [];
+    foreach (eb_db()->query('select name, feedurl, url from blogs where approved = 1 order by name') as $row) {
+        $feedurl = safe_url($row['feedurl']);
+        if ($feedurl !== '') {
+            $feeds[] = ['name' => xml_clean($row['name']), 'feedurl' => $feedurl, 'url' => safe_url($row['url'])];
+        }
+    }
+    $smarty->assign('feeds', $feeds);
+    $smarty->assign('updated', gmdate(DATE_RFC2822));
 }
-
-
-$smarty->assign("feeds", $feeds);
-
-
-$smarty->display("opml.tpl");
+$smarty->display('opml.tpl');

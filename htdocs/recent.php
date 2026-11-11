@@ -1,41 +1,23 @@
-<?php require("/home/web/evebloggers/smarty/smartyinclude.php");
-require("header.php");
+<?php
+require __DIR__ . '/header.php';
+require __DIR__ . '/../smarty/smartyinclude.php';
+require __DIR__ . '/../lib/site.php';
+
 $smarty->setCacheLifetime(300);
-
-
-
-require_once("dbpost.inc.php");
-
-$blogsql="select name,id,url from blogs order by id asc";
-
-$stmt = $dbh->prepare($blogsql);
-
-$stmt->execute();
-$blog=array();
-while ($row = $stmt->fetchObject()){
-$blog[$row->id]=array("name"=>$row->name,"url"=>$row->url);
+if (!$smarty->isCached('recent.tpl')) {
+    $stmt = eb_db()->query(<<<SQL
+        select e.link, e.title, e.author, e.description, b.name,
+               to_char(e."pubDate" at time zone 'UTC', 'HH24:MI DD-Mon-YY') as pubdate
+          from blog_entries e
+          join blogs b on b.id = e.blog
+         where e."pubDate" > now() - interval '7 days'
+         order by e."pubDate" desc
+        SQL);
+    $posts = [];
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $row['link'] = safe_url($row['link']);
+        $posts[] = $row;
+    }
+    $smarty->assign('posts', $posts);
 }
-
-
-
-$sql=<<<EOS
-select id,link,title,to_char("pubDate",'HH24:MI DD-Mon-YY') "pubDated",author,blog,description from (select id,link,title,"pubDate",author,blog,description from blog_entries where  "pubDate">current_date - interval '7 days') a order by "pubDate" desc 
-EOS;
-
-$stmt = $dbh->prepare($sql);
-
-$stmt->execute();
-
-$entries=array();
-while ($row = $stmt->fetchObject()){
-$entries[$row->id]=array("link"=>$row->link,"author"=>$row->author,"blog"=>$row->blog,"title"=>$row->title,"description"=>$row->description,"date"=>$row->pubDated);
-}
-
-
-$smarty->assign("posts",$entries);
-$smarty->assign("blognames",$blog);
-
-
-
-
-$smarty->display("recent.tpl");
+$smarty->display('recent.tpl');

@@ -10,17 +10,10 @@ EVE Online and the EVE logo are the registered trademarks of CCP hf. All rights 
 
     
     <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
-    <script src="https://code.jquery.com/jquery.js"></script>
+    <script src="https://code.jquery.com/jquery-1.11.1.min.js"></script>
     <!-- Include all compiled plugins (below), or include individual files as needed -->
     <!-- Latest compiled and minified JavaScript -->
-    <script src="//netdna.bootstrapcdn.com/bootstrap/3.0.2/js/bootstrap.min.js"></script>
-<script>
-if ($( window ).width() <768)
-{
-$("#topnavbar").removeClass("navbar-fixed-top");
-$("#topnavbar").addClass("navbar-static-top");
-}
-</script>
+    <script src="https://netdna.bootstrapcdn.com/bootstrap/3.0.2/js/bootstrap.min.js"></script>
   </body>
 </html>
 

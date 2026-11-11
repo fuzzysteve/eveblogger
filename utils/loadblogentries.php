@@ -16,22 +16,26 @@ function logline(string $msg): void
     echo date('c'), ' ', $msg, "\n";
 }
 
+/**
+ * HTML fragment -> plain text. Titles and descriptions are stored as plain text and
+ * escaped by Smarty on output; only `content` keeps its HTML.
+ */
+function plain_text(string $html): string
+{
+    $text = html_entity_decode(strip_tags($html), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    return trim(preg_replace('/[\s\x{00A0}]+/u', ' ', $text) ?? '');
+}
+
 /** First $max characters of the description as plain text, cut on a word boundary. */
 function summary(string $html, int $max = SUMMARY_LENGTH): string
 {
-    $text = trim(preg_replace('/\s+/u', ' ', strip_tags($html)) ?? '');
+    $text = plain_text($html);
     if (mb_strlen($text) <= $max) {
         return $text;
     }
     $cut = mb_substr($text, 0, $max);
     $space = mb_strrpos($cut, ' ');
     return ($space !== false && $space > $max / 2) ? mb_substr($cut, 0, $space) : $cut;
-}
-
-/** Same output FILTER_SANITIZE_STRING gave (removed in PHP 8.1), so new rows match existing ones. */
-function clean_title(string $title): string
-{
-    return str_replace(["'", '"'], ['&#39;', '&#34;'], strip_tags($title));
 }
 
 $dbh = eb_db();
@@ -92,7 +96,7 @@ foreach ($feeds as $feed) {
                 continue;  // already seen, undated, or no link to point at
             }
 
-            $title = clean_title((string) $item->get_title());
+            $title = plain_text((string) $item->get_title());
             $seenStmt->execute([
                 ':blog'      => $feed->id,
                 ':bare_link' => preg_replace('#^https?://#', '', $link),
@@ -115,7 +119,7 @@ foreach ($feeds as $feed) {
                     ':pubDate'     => $pubtime,
                     ':description' => summary((string) $item->get_description()),
                     ':content'     => (string) $item->get_content(),
-                    ':author'      => ($author ? $author->get_name() : null) ?: $feed->owner,
+                    ':author'      => plain_text((string) ($author ? $author->get_name() : '')) ?: $feed->owner,
                     ':authoremail' => $author ? $author->get_email() : null,
                     ':blog'        => $feed->id,
                 ]);

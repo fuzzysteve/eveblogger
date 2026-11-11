@@ -1,29 +1,26 @@
-<?xml version="1.0" encoding="ISO-8859-1" ?>
+<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0"
-  	xmlns:content="http://purl.org/rss/1.0/modules/content/"
-	xmlns:wfw="http://wellformedweb.org/CommentAPI/"
-	xmlns:dc="http://purl.org/dc/elements/1.1/"
-	xmlns:atom="http://www.w3.org/2005/Atom"
-	xmlns:sy="http://purl.org/rss/1.0/modules/syndication/"
-	xmlns:slash="http://purl.org/rss/1.0/modules/slash/">
-    <channel>
-      <title>{$title}</title>
-      <atom:link href="{$linkurl}" rel="self" type="application/rss+xml" />
-      <link>{$linkurl}</link>
-      <description>{$description}</description>
-      <language>en-us</language>
-  {foreach $posts as $post}
-       <item>
-           <title>{$post.title}</title>
-           <link>{$post.link}</link>
-           <guid>{$post.link}</guid>
-           <description><![CDATA[{$post.description}]]></description>
-   {if $lite eq 0}
-           <content:encoded><![CDATA[{$post.content}]]></content:encoded>
-   {/if}
-           <pubDate>{$post.date}</pubDate>
-           <dc:creator><![CDATA[{$post.author}]]></dc:creator>
-       </item>
-  {/foreach}
-    </channel>
+    xmlns:content="http://purl.org/rss/1.0/modules/content/"
+    xmlns:dc="http://purl.org/dc/elements/1.1/"
+    xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>{$title}</title>
+    <atom:link href="{$selfurl}" rel="self" type="application/rss+xml" />
+    <link>{$siteurl}</link>
+    <description>{$description}</description>
+    <language>en-us</language>
+{foreach $posts as $post}
+    <item>
+      <title>{$post.title}</title>
+      <link>{$post.link}</link>
+      <guid isPermaLink="true">{$post.link}</guid>
+      <description>{$post.description}</description>
+{if !$lite}
+      <content:encoded>{$post.content nofilter}</content:encoded>
+{/if}
+      <pubDate>{$post.date}</pubDate>
+      <dc:creator>{$post.author}</dc:creator>
+    </item>
+{/foreach}
+  </channel>
 </rss>
