@@ -3,8 +3,6 @@
 
 # Composer-managed dependencies
 /vendor/
-/htdocs/vendor/
-/utils/indexer/vendor/
 
 # Runtime output
 /logs/

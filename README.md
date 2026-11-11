@@ -1,13 +1,47 @@
-The code behind evebloggers.com, the fuzzysteve version.
+# evebloggers.com
 
-It depends on postgres, rather then mysql, because mysql lacks window functions. I guess you could run it in oracle with no problems. 
+The code behind evebloggers.com: an aggregator that polls EVE Online blogs' RSS/Atom
+feeds and shows their latest posts, plus combined RSS feeds and an OPML file.
 
+## Layout
 
-Templating is handled by smarty, which you need to install as per http://www.smarty.net/quick_install
+| Path | What |
+| --- | --- |
+| `htdocs/` | Web root. Each page is a thin wrapper around `lib/site.php`. |
+| `lib/bootstrap.php` | Reads `.env`, opens the PostgreSQL connection (`eb_db()`). |
+| `lib/site.php` | Blog listing and RSS feed rendering shared by the pages. |
+| `smarty/templates/` | Smarty templates. Output is HTML-escaped by default (`nofilter` opts out). |
+| `utils/loadblogentries.php` | Feed poller. `utils/run.sh` runs it from cron and logs to `logs/loader/`. |
+| `eveblogger.sql` | Schema (`pg_dump --schema-only`). |
 
-Parsing of RSS feeds is handled by http://simplepie.org/  http://simplepie.org/wiki/setup/setup The directory to upload to is utils/
+## Setup
 
-The search engine is a copy of solr. I'm using the default configuration. php accesses it through http://www.solarium-project.org/, for which you'll find a composer.json in the utils/indexer directory.
+Requires PHP 8.1+ (with `pdo_pgsql`, `curl`, `mbstring`, `xml`) and PostgreSQL. It uses
+PostgreSQL window functions.
 
+```sh
+composer install                 # Smarty, SimplePie, google/recaptcha into vendor/
+cp .env.example .env             # then fill in DB and reCAPTCHA (v2) keys
+chown root:www-data .env && chmod 640 .env
+psql -d eveblogger -f eveblogger.sql
+```
 
+The web server's document root is `htdocs/`. `smarty/templates_c/` and `smarty/cache/`
+must be writable by the web server user.
 
+Cron, e.g. twice an hour:
+
+```
+15,45 * * * * /home/web/evebloggers/utils/run.sh
+```
+
+## Blog approval
+
+Submissions from `add.php` land in `blogs_real` with `approved = 0`.
+
+| `approved` | Polled by the loader | Shown on the site |
+| --- | --- | --- |
+| `0` | no | no (pending) |
+| `1` | yes | yes |
+| `2` | no | yes (retired: dead feed, old posts kept) |
+| `-1` | yes | no |
