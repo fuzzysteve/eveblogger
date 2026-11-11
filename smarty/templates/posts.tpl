@@ -1,7 +1,7 @@
 {include file="header.tpl" title="Eve Bloggers"}
 <div class=row>
 <div class="col-md-12">
-<p>This is the very first draft, with the 5 most recent posts of the blogs being polled. No categorization built in, no sorting or ordering of blogs. Those should be features which come later.</p>
+<p>{$toptext}</p>
 </div>
 </div>
 <div class="row">

@@ -1,3 +1,3 @@
 #!/bin/bash -l
 cd /home/web/evebloggers/utils/indexer
-/usr/local/bin/php loader.php >/dev/null
+/usr/bin/php73 loader.php >/dev/null

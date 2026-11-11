@@ -1,78 +1,144 @@
 <?php
+/**
+ * Polls every approved feed and stores posts newer than the blog's lastupdate.
+ * Run from cron via run.sh; progress and errors go to stdout for the log file.
+ */
+declare(strict_types=1);
 
+require __DIR__ . '/../lib/bootstrap.php';
+require __DIR__ . '/../vendor/autoload.php';
 
-require("dbpost.inc.php");
-require_once('autoloader.php');
+const FEED_TIMEOUT = 10;      // seconds per feed fetch
+const SUMMARY_LENGTH = 255;   // characters kept from the post description
 
-$sql="select id,feedurl,name,owner,extract(epoch from lastupdate) lastupdate from blogs";
-
-$feedstmt=$dbh->prepare($sql);
-$feedstmt->execute();
-
-
-$entry_sql=<<<EOS
-insert into blog_entries (title,guid,link,"pubDate",description,content,date_entered,num_comments,author,authoremail,blog) values (:title,:guid,:link,to_timestamp(:pubDate),:description,:content,now(),:comments,:author,:authoremail,:blog)
-EOS;
-
-$entrystmt=$dbh->prepare($entry_sql);
-
-$updatesql="update blogs_real set lastupdate=to_timestamp(:timestamp) where id=:feed";
-$updatestmt=$dbh->prepare($updatesql);
-
-while ($feed=$feedstmt->fetchObject()){
-
-    # Iterate through each feed, checking the last update against the lastBuildDate to see if there is anything new in this one. 
-
-
-    $rss=new SimplePie();
-    $rss->set_feed_url($feed->feedurl);
-    $rss->enable_order_by_date(false);
-    $rss->enable_cache(false);
-    $rss->init();
-echo $feed->name."\n";
-    $lastupdate=$feed->lastupdate;
-    foreach ($rss->get_items() as $item)
-    {
-        $pubtime=strtotime($item->get_date());
-        if ($pubtime<=$feed->lastupdate)
-        {
-            continue;
-        }
-        if ($lastupdate<$pubtime)
-        {
-             $lastupdate=$pubtime;
-        }
-        $length=(strlen(strip_tags($item->get_description()))<255) ?  strlen(strip_tags($item->get_description())) : 255;
-        list($description,$rest)=explode("\n",wordwrap(strip_tags($item->get_description()." f"),$length));
-        $author=$item->get_author(0);
-        if (!isset($author))
-        {
-            $author=$feed->owner;
-            $authoremail="";
-        }
-        else
-        {
-            $author=$item->get_author(0)->get_name();
-            $authoremail=$item->get_author(0)->get_email();
-        }
-        $entrystmt->execute(array(":title"=>$item->get_title(),":guid"=>$item->get_permalink(),":link"=>$item->get_permalink(),":pubDate"=>$pubtime,":description"=>$description,":content"=>$item->get_content(),":comments"=>0,":author"=>$author,":authoremail"=>$authoremail,":blog"=>$feed->id));
-       if (isset($entrystmt->errorCode))
-       {
-            print_r($entrystmt->errorInfo());
-        }
-
-    }
-    $updatestmt->execute(array(":feed"=>$feed->id,":timestamp"=>$lastupdate));
-
-
+function logline(string $msg): void
+{
+    echo date('c'), ' ', $msg, "\n";
 }
 
+/** First $max characters of the description as plain text, cut on a word boundary. */
+function summary(string $html, int $max = SUMMARY_LENGTH): string
+{
+    $text = trim(preg_replace('/\s+/u', ' ', strip_tags($html)) ?? '');
+    if (mb_strlen($text) <= $max) {
+        return $text;
+    }
+    $cut = mb_substr($text, 0, $max);
+    $space = mb_strrpos($cut, ' ');
+    return ($space !== false && $space > $max / 2) ? mb_substr($cut, 0, $space) : $cut;
+}
 
-require('../smarty/smartyinclude.php');
+/** Same output FILTER_SANITIZE_STRING gave (removed in PHP 8.1), so new rows match existing ones. */
+function clean_title(string $title): string
+{
+    return str_replace(["'", '"'], ['&#39;', '&#34;'], strip_tags($title));
+}
 
-$smarty = new Smarty;
-$smarty->setCaching(Smarty::CACHING_LIFETIME_CURRENT);
-$smarty->clearCache('post.tpl');
+$dbh = eb_db();
 
+$feeds = $dbh->query(
+    'select id, feedurl, name, owner, extract(epoch from lastupdate)::bigint as lastupdate
+       from blogs_real where approved in (1, -1) order by id'
+)->fetchAll(PDO::FETCH_OBJ);
 
-?>
+$entryStmt = $dbh->prepare(
+    'insert into blog_entries
+        (title, guid, link, "pubDate", description, content, date_entered, num_comments, author, authoremail, blog)
+     values
+        (:title, :guid, :link, to_timestamp(:pubDate), :description, :content, now(), 0, :author, :authoremail, :blog)
+     returning id'
+);
+$categoryStmt = $dbh->prepare(
+    'insert into post_category (post_id, category_id) values (:post_id, category_id(:category_text))'
+);
+$updateStmt = $dbh->prepare('update blogs_real set lastupdate = to_timestamp(:timestamp) where id = :feed');
+
+$totalAdded = 0;
+$failedFeeds = 0;
+
+foreach ($feeds as $feed) {
+    try {
+        $rss = new \SimplePie\SimplePie();
+        $rss->set_feed_url($feed->feedurl);
+        $rss->enable_order_by_date(false);
+        $rss->enable_cache(false);
+        $rss->set_timeout(FEED_TIMEOUT);
+
+        if (!$rss->init()) {
+            $failedFeeds++;
+            logline("FAIL  #{$feed->id} {$feed->name}: " . trim((string) $rss->error()));
+            continue;
+        }
+
+        $lastupdate = (int) $feed->lastupdate;
+        $newest = $lastupdate;
+        $added = 0;
+
+        foreach ($rss->get_items() as $item) {
+            $pubtime = (int) $item->get_date('U');
+            $link = $item->get_permalink();
+            if ($pubtime <= $lastupdate || !$link) {
+                continue;  // already seen, undated, or no link to point at
+            }
+
+            $author = $item->get_author(0);
+            try {
+                $entryStmt->execute([
+                    ':title'       => clean_title((string) $item->get_title()),
+                    ':guid'        => $link,
+                    ':link'        => $link,
+                    ':pubDate'     => $pubtime,
+                    ':description' => summary((string) $item->get_description()),
+                    ':content'     => (string) $item->get_content(),
+                    ':author'      => ($author ? $author->get_name() : null) ?: $feed->owner,
+                    ':authoremail' => $author ? $author->get_email() : null,
+                    ':blog'        => $feed->id,
+                ]);
+                $entryId = (int) $entryStmt->fetchColumn();
+                $entryStmt->closeCursor();
+            } catch (PDOException $e) {
+                if ($e->getCode() === '23505') {   // unique_violation on guid: already stored
+                    $newest = max($newest, $pubtime);
+                    continue;
+                }
+                logline("ERROR #{$feed->id} insert {$link}: " . $e->getMessage());
+                continue;
+            }
+
+            $newest = max($newest, $pubtime);
+            $added++;
+
+            foreach ($item->get_categories() ?? [] as $category) {
+                $term = trim((string) $category->get_term());
+                if ($term === '') {
+                    continue;
+                }
+                try {
+                    $categoryStmt->execute([':post_id' => $entryId, ':category_text' => $term]);
+                } catch (PDOException $e) {
+                    logline("WARN  #{$feed->id} category '{$term}' on post {$entryId}: " . $e->getMessage());
+                }
+            }
+        }
+
+        // Never move lastupdate into the future: a mis-dated post would hide everything until then.
+        $newest = min($newest, time());
+        if ($newest > $lastupdate) {
+            $updateStmt->execute([':feed' => $feed->id, ':timestamp' => $newest]);
+        }
+        if ($added > 0) {
+            logline("OK    #{$feed->id} {$feed->name}: {$added} new");
+        }
+        $totalAdded += $added;
+    } catch (Throwable $e) {
+        $failedFeeds++;
+        logline("FAIL  #{$feed->id} {$feed->name}: " . get_class($e) . ': ' . $e->getMessage());
+    }
+}
+
+if ($totalAdded > 0) {
+    require __DIR__ . '/../smarty/smartyinclude.php';
+    $smarty->clearAllCache();
+}
+
+logline(sprintf('DONE  %d feeds, %d new posts, %d feeds failed', count($feeds), $totalAdded, $failedFeeds));

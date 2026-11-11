@@ -5,11 +5,9 @@ require_once("dbpost.inc.php");
 
 require('init.php');
 
-// check solarium version available
-echo 'Solarium library version: ' . Solarium_Version::VERSION . ' - ';
 
 // create a client instance
-$client = new Solarium_Client($config);
+$client = new Solarium\Client($config);
 
 
 
@@ -24,8 +22,8 @@ $updatesql="update blog_entries set indexed=1 where id=:id";
 
 $updatestmt=$dbh->prepare($updatesql);
 
-
 while ($row=$entriesstmt->fetchObject()){
+print $row->id."\n";
 $update = $client->createUpdate();
 $doc =  $update->createDocument();
 $doc->id=$row->id;

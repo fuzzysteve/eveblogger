@@ -7,10 +7,10 @@
 	xmlns:sy="http://purl.org/rss/1.0/modules/syndication/"
 	xmlns:slash="http://purl.org/rss/1.0/modules/slash/">
     <channel>
-      <title>evebloggers.com</title>
-      <atom:link href="http://evebloggers.com/feed.php" rel="self" type="application/rss+xml" />
-      <link>http://evebloggers.com/feed.php</link>
-      <description>A consolidated feed of posts from eve bloggers</description>
+      <title>{$title}</title>
+      <atom:link href="{$linkurl}" rel="self" type="application/rss+xml" />
+      <link>{$linkurl}</link>
+      <description>{$description}</description>
       <language>en-us</language>
   {foreach $posts as $post}
        <item>
@@ -18,7 +18,9 @@
            <link>{$post.link}</link>
            <guid>{$post.link}</guid>
            <description><![CDATA[{$post.description}]]></description>
+   {if $lite eq 0}
            <content:encoded><![CDATA[{$post.content}]]></content:encoded>
+   {/if}
            <pubDate>{$post.date}</pubDate>
            <dc:creator><![CDATA[{$post.author}]]></dc:creator>
        </item>

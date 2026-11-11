@@ -1,3 +1,3 @@
 <?php
-$dbh = new PDO('pgsql:host=localhost;dbname=eveblogger', 'eveblog', 'eveBlog');
-?> 
+require_once __DIR__ . "/../lib/bootstrap.php";
+$dbh = eb_db();

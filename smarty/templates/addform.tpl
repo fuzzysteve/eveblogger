@@ -8,6 +8,8 @@
 <tr><td><label for="feedurl">Feed URL</label></td><td><input name="feedurl" id="feedurl" type=text placeholder="Where to find the rss on your site. e.g. http://evebloggers.com/blog/feed/" size=80></td></tr>
 <tr><td><label for="description">Description</label></td><td><input name="description" id="description" type=text placeholder="Currently unused. but it seemed a good idea to ask." size=80 ></td></tr>
 </table>
+<div class="g-recaptcha" data-sitekey="{$recaptcha_site_key}"></div>
 <input type=submit name=submit value="Add Blog">
 </form>
+<script src='https://www.google.com/recaptcha/api.js'></script>
 {include file="footer.tpl"}

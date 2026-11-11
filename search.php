@@ -1,6 +1,7 @@
-<?
+<?php
+header('Cache-Control: no-cache');
 require_once("dbpost.inc.php");
-require_once("../utils/indexer/init.php");
+require_once("init.php");
 require("/home/web/evebloggers/smarty/smartyinclude.php");
 
 
@@ -8,14 +9,17 @@ require("/home/web/evebloggers/smarty/smartyinclude.php");
 if (isset($_POST['query']))
 {
 
-$client = new Solarium_Client($config);
+$client = new Solarium\Client($config);
 $query = $client->createSelect();
 
-$querystring=substr($_POST['query'],0,255);
+$querystring="text:".substr($_POST['query'],0,255);
+$querystring.=" or author:".substr($_POST['query'],0,255);
+$querystring.=" or description:".substr($_POST['query'],0,255);
+$querystring.=" or title:".substr($_POST['query'],0,255);
 
 $query->setQuery($querystring);
 $query->setFields(array('id'));
-$query->addSort('last_modified', Solarium_Query_Select::SORT_DESC);
+#$query->addSort('last_modified', Solarium_Query_Select::SORT_DESC);
 
 $resultset = $client->select($query);
 

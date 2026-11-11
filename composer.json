@@ -1,0 +1,7 @@
+{
+    "require": {
+        "smarty/smarty": "^5.6",
+        "simplepie/simplepie": "^1.8",
+        "google/recaptcha": "^1.3"
+    }
+}

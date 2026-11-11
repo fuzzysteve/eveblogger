@@ -1,4 +1,5 @@
 <?php require("/home/web/evebloggers/smarty/smartyinclude.php");
+require("header.php");
 $smarty->setCacheLifetime(300);
 
 
@@ -30,7 +31,7 @@ while ($row = $stmt->fetchObject()){
 $entries[$row->blog][$row->id]=array("link"=>$row->link,"author"=>$row->author,"blog"=>$row->blog,"title"=>$row->title,"description"=>$row->description,"date"=>$row->pubDate);
 }
 
-
+$smarty->assign("toptext","This is the very first draft, with the 5 most recent posts of the blogs being polled. No categorization built in, no sorting or ordering of blogs. Those should be features which come later.");
 $smarty->assign("posts",$entries);
 $smarty->assign("blognames",$blog);
 $smarty->assign("blogs",array_keys($blog));

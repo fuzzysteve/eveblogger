@@ -1,4 +1,5 @@
 <?php require("/home/web/evebloggers/smarty/smartyinclude.php");
+require("header.php");
 $smarty->setCacheLifetime(300);
 
 

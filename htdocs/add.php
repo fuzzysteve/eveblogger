@@ -1,34 +1,46 @@
-<?php require("/home/web/evebloggers/smarty/smartyinclude.php");
+<?php
+require __DIR__ . '/../smarty/smartyinclude.php';
+require_once __DIR__ . '/../lib/bootstrap.php';
 $smarty->setCacheLifetime(0);
 
-
-if ($_POST['submit']=="Add Blog")
-{
-
-$addsql="insert into blogs_real(name,url,feedurl,owner,lastupdate,description,approved) values (:name,:url,:feedurl,:owner,to_timestamp(0),:description,0)";
-require_once("dbpost.inc.php");
-
-$dbh->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-
-try{
-$addstmt=$dbh->prepare($addsql);
-
-$addstmt->execute(array(":name"=>substr(strip_tags($_POST['blogtitle']),0,255),":url"=>substr(strip_tags($_POST['url']),0,255),":feedurl"=>substr(strip_tags($_POST['feedurl']),0,255),":owner"=>substr(strip_tags($_POST['author']),0,255),":description"=>substr(strip_tags($_POST['description']),0,255)));
-$smarty->display("addblog.tpl");
-
-mail("steve@evebloggers.com","New blog Added","a new blog with a title of '".substr(strip_tags($_POST['blogtitle']),0,255)."' has been added");
-
-
-} catch (PDOException $e){
-echo "Something went wrong. You should let Steve know";
-# . $e->getMessage();
-
+if (($_POST['submit'] ?? '') !== 'Add Blog') {
+    $smarty->assign('recaptcha_site_key', eb_env('RECAPTCHA_SITE_KEY'));
+    $smarty->display('addform.tpl');
+    exit;
 }
 
+$recaptcha = new \ReCaptcha\ReCaptcha(eb_env('RECAPTCHA_SECRET'));
+$resp = $recaptcha->verify($_POST['g-recaptcha-response'] ?? '', $_SERVER['REMOTE_ADDR']);
+if (!$resp->isSuccess()) {
+    echo 'Bad captcha answer';
+    exit;
+}
 
-exit;
+$field = fn(string $name): string => substr(strip_tags($_POST[$name] ?? ''), 0, 255);
+
+try {
+    require_once 'dbpost.inc.php';
+    $addstmt = $dbh->prepare(
+        'insert into blogs_real(name,url,feedurl,owner,lastupdate,description,approved)
+         values (:name,:url,:feedurl,:owner,to_timestamp(0),:description,0)'
+    );
+    $addstmt->execute([
+        ':name'        => $field('blogtitle'),
+        ':url'         => $field('url'),
+        ':feedurl'     => $field('feedurl'),
+        ':owner'       => $field('author'),
+        ':description' => $field('description'),
+    ]);
+} catch (PDOException $e) {
+    error_log('add.php insert failed: ' . $e->getMessage());
+    echo 'Something went wrong. You should let Steve know';
+    exit;
 }
-else
-{
-$smarty->display("addform.tpl");
-}
+
+$smarty->display('addblog.tpl');
+
+mail(
+    'steve@evebloggers.com',
+    'New blog Added',
+    "a new blog with a title of '" . $field('blogtitle') . "' has been added"
+);
