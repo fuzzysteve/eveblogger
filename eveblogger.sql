@@ -70,7 +70,6 @@ CREATE TABLE public.blog_entries (
     author character varying(500) DEFAULT ''::character varying NOT NULL,
     blog integer NOT NULL,
     authoremail character varying(255),
-    indexed integer DEFAULT 0,
     search tsvector GENERATED ALWAYS AS (((setweight(to_tsvector('english'::regconfig, COALESCE(title, ''::text)), 'A'::"char") || setweight(to_tsvector('english'::regconfig, COALESCE(description, ''::text)), 'B'::"char")) || setweight(to_tsvector('english'::regconfig, "left"(regexp_replace(COALESCE(content, ''::text), '<[^>]*>'::text, ' '::text, 'g'::text), 100000)), 'C'::"char"))) STORED
 );
 
