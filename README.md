@@ -14,6 +14,7 @@ feeds and shows their latest posts, plus combined RSS feeds and an OPML file.
 | `utils/loadblogentries.php` | Feed poller. `utils/run.sh` runs it from cron and logs to `logs/loader/`. Caches feeds in `cache/simplepie/` (conditional GET) and holds a blog whose new posts all link to an unfamiliar site (`lib/hosts.php`). |
 | `utils/healthcheck.php` | Hourly: alerts when the loader stops finishing runs, no posts arrive for 3 days, or submissions wait 3+ days. |
 | `lib/alert.php` | Posts alerts to Discord via the fuzzworkbot bot (`DISCORD_BOT_TOKEN`, `DISCORD_ALERT_CHANNEL`). |
+| `utils/smoketest.php` | Read-only check of every page, feed XML, security headers and the error log. Run after changes (`--public` to go through Cloudflare). |
 | `htdocs/admin.php` | Moderation: held feeds, pending submissions, failing feeds, blog statuses. Password hash in `ADMIN_PASSWORD_HASH`. |
 | `eveblogger.sql` | Schema (`pg_dump --schema-only`). |
 | `conf/apache/` | Copies of the live vhost (`/etc/apache2/sites-available/evebloggers.conf` + `evebloggers-site.inc`). |
@@ -48,6 +49,10 @@ cron); to set it up from scratch:
 ```
 
 then set Cloudflare's SSL/TLS mode to **Full (strict)**.
+
+The vhost sends a strict Content-Security-Policy (no inline script or style). Keep JavaScript
+and CSS in `htdocs/assets/` or on cdnjs, and add `data-cfasync="false"` to every `<script>` so
+Cloudflare's Rocket Loader leaves it alone. `utils/smoketest.php` checks the headers are present.
 
 Cron, e.g. twice an hour:
 

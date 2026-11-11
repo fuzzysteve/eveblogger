@@ -40,8 +40,17 @@ CustomLog "|/usr/local/sbin/cronolog /home/web/evebloggers/logs/%Y/%m/%d/combine
     RemoteIPTrustedProxy 2c0f:f248::/32
 </IfModule>
 
-Header always set Strict-Transport-Security "max-age=86400"
+Header always set Strict-Transport-Security "max-age=31536000"
 Header always set X-Content-Type-Options "nosniff"
 Header always set Referrer-Policy "strict-origin-when-cross-origin"
+
+# Scripts/styles only from this site and cdnjs (Bootstrap); reCAPTCHA (add.php) from Google.
+# No inline script or style: the theme script and site CSS live in htdocs/assets/.
+# Cloudflare's Rocket Loader is skipped via data-cfasync="false" on every script tag.
+Header always set Content-Security-Policy "default-src 'self'; \
+script-src 'self' https://cdnjs.cloudflare.com https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/; \
+style-src 'self' https://cdnjs.cloudflare.com; img-src 'self' data:; font-src 'self'; connect-src 'self'; \
+frame-src https://www.google.com/recaptcha/ https://recaptcha.google.com/recaptcha/; \
+object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"
 
 ProxyPassMatch ^/(.*\.php(/.*)?)$ fcgi://127.0.0.1:9000/home/web/evebloggers/htdocs/$1

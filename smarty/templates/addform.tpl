@@ -29,5 +29,5 @@
   <div class="g-recaptcha mb-3" data-sitekey="{$recaptcha_site_key}"></div>
   <button type="submit" name="submit" value="Add Blog" class="btn btn-primary">Add blog</button>
 </form>
-<script src="https://www.google.com/recaptcha/api.js" async defer></script>
+<script data-cfasync="false" src="https://www.google.com/recaptcha/api.js" async defer></script>
 {include file="footer.tpl"}

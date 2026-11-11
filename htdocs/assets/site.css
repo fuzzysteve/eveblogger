@@ -1,0 +1,4 @@
+.datespan { font-size: .75rem; color: var(--bs-secondary-color); white-space: nowrap; }
+.site .title { font-weight: 600; }
+.site ul { padding-left: 1.1rem; }
+.legal { font-size: .7rem; }
