@@ -149,15 +149,6 @@ ALTER SEQUENCE public.categories_category_id_seq OWNED BY public.categories.cate
 
 
 --
--- Name: csmblog; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.csmblog (
-    blogid integer
-);
-
-
---
 -- Name: post_category; Type: TABLE; Schema: public; Owner: -
 --
 
