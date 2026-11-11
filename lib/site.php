@@ -30,9 +30,8 @@ function cdata(?string $html): string
  * Blogs that have posted in the last $days, most recently active first,
  * each with its latest $perBlog posts. Dates are shown in UTC (EVE time).
  */
-function blog_listing(PDO $dbh, bool $csmOnly, int $days = 365, int $perBlog = 5): array
+function blog_listing(PDO $dbh, int $days = 365, int $perBlog = 5): array
 {
-    $csmJoin = $csmOnly ? 'join csmblog c on c.blogid = e.blog' : '';
     $stmt = $dbh->prepare(<<<SQL
         select e.link, e.title, e.author, e.blog, e.description, b.name, b.url,
                to_char(e."pubDate" at time zone 'UTC', 'HH24:MI DD-Mon-YY') as pubdate,
@@ -41,7 +40,6 @@ function blog_listing(PDO $dbh, bool $csmOnly, int $days = 365, int $perBlog = 5
                   from blog_entries
                  where "pubDate" > now() - make_interval(days => :days)) e
           join blogs b on b.id = e.blog
-          $csmJoin
          where e.rn <= :per
          order by latest desc, e.blog, e.rn
         SQL);
@@ -62,12 +60,12 @@ function blog_listing(PDO $dbh, bool $csmOnly, int $days = 365, int $perBlog = 5
 }
 
 /** Render a cached posts.tpl listing page. */
-function render_listing(Smarty\Smarty $smarty, string $cacheId, bool $csmOnly, string $intro, int $days = 365): void
+function render_listing(Smarty\Smarty $smarty, string $cacheId, string $intro, int $days = 365): void
 {
     $smarty->setCacheLifetime(300);
     if (!$smarty->isCached('posts.tpl', $cacheId)) {
         $smarty->assign('toptext', $intro);
-        $smarty->assign('blogs', blog_listing(eb_db(), $csmOnly, $days));
+        $smarty->assign('blogs', blog_listing(eb_db(), $days));
     }
     $smarty->display('posts.tpl', $cacheId);
 }
