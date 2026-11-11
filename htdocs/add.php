@@ -1,6 +1,7 @@
 <?php
 require __DIR__ . '/../smarty/smartyinclude.php';
 require_once __DIR__ . '/../lib/site.php';
+require_once __DIR__ . '/../lib/alert.php';
 $smarty->setCaching(Smarty\Smarty::CACHING_OFF);
 
 function show_form(Smarty\Smarty $smarty, array $form = [], array $errors = []): never
@@ -62,9 +63,8 @@ try {
 
 $smarty->display('addblog.tpl');
 
-mail(
-    'steve@evebloggers.com',
-    'New blog Added',
-    "A new blog has been submitted for approval:\n\n"
-    . "Title: {$form['blogtitle']}\nAuthor: {$form['author']}\nSite: {$form['url']}\nFeed: {$form['feedurl']}\n"
+eb_alert(
+    "New blog submitted: **{$form['blogtitle']}** by {$form['author']}\n"
+    . "Site: <{$form['url']}> · Feed: <{$form['feedurl']}>\n"
+    . 'Approve or reject at https://evebloggers.com/admin.php'
 );

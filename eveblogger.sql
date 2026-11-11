@@ -70,7 +70,8 @@ CREATE TABLE public.blog_entries (
     author character varying(500) DEFAULT ''::character varying NOT NULL,
     blog integer NOT NULL,
     authoremail character varying(255),
-    indexed integer DEFAULT 0
+    indexed integer DEFAULT 0,
+    search tsvector GENERATED ALWAYS AS (((setweight(to_tsvector('english'::regconfig, COALESCE(title, ''::text)), 'A'::"char") || setweight(to_tsvector('english'::regconfig, COALESCE(description, ''::text)), 'B'::"char")) || setweight(to_tsvector('english'::regconfig, "left"(regexp_replace(COALESCE(content, ''::text), '<[^>]*>'::text, ' '::text, 'g'::text), 100000)), 'C'::"char"))) STORED
 );
 
 
@@ -98,8 +99,25 @@ CREATE TABLE public.blogs_real (
     lastupdate timestamp with time zone NOT NULL,
     description character varying(510) DEFAULT NULL::character varying,
     url character varying(255),
-    approved integer DEFAULT 0
+    approved integer DEFAULT 0,
+    held_reason text,
+    held_since timestamp with time zone,
+    allowed_hosts text[] DEFAULT '{}'::text[] NOT NULL
 );
+
+
+--
+-- Name: COLUMN blogs_real.held_reason; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.blogs_real.held_reason IS 'Set by the loader when a feed''s posts point at an unexpected site; polling paused until cleared in admin.php';
+
+
+--
+-- Name: COLUMN blogs_real.allowed_hosts; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.blogs_real.allowed_hosts IS 'Extra link hosts accepted for this blog (beyond its url/feedurl and past post links)';
 
 
 --
@@ -209,6 +227,13 @@ CREATE INDEX bentries_pubdate ON public.blog_entries USING btree ("pubDate");
 --
 
 CREATE INDEX blog_entries_blog_idx ON public.blog_entries USING btree (blog);
+
+
+--
+-- Name: blog_entries_search_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX blog_entries_search_idx ON public.blog_entries USING gin (search);
 
 
 --

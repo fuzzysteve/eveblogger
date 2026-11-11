@@ -6,10 +6,14 @@
 declare(strict_types=1);
 
 require __DIR__ . '/../lib/bootstrap.php';
+require __DIR__ . '/../lib/alert.php';
+require __DIR__ . '/../lib/hosts.php';
 require __DIR__ . '/../vendor/autoload.php';
 
 const FEED_TIMEOUT = 10;      // seconds per feed fetch
 const SUMMARY_LENGTH = 255;   // characters kept from the post description
+const CACHE_DIR = __DIR__ . '/../cache/simplepie';
+const CACHE_SECONDS = 1500;   // < the 30-minute cron, so every run revalidates (ETag / Last-Modified)
 
 function logline(string $msg): void
 {
@@ -39,11 +43,25 @@ function summary(string $html, int $max = SUMMARY_LENGTH): string
 }
 
 $dbh = eb_db();
+@mkdir(CACHE_DIR, 0750, true);
 
 $feeds = $dbh->query(
-    'select id, feedurl, name, owner, extract(epoch from lastupdate)::bigint as lastupdate
-       from blogs_real where approved in (1, -1) order by id'
+    'select id, feedurl, url, name, owner, allowed_hosts, extract(epoch from lastupdate)::bigint as lastupdate
+       from blogs_real where approved in (1, -1) and held_reason is null order by id'
 )->fetchAll(PDO::FETCH_OBJ);
+
+// Hosts each blog's past posts have linked to, so a blog that moved (http->https, new domain)
+// years ago isn't flagged for it now.
+$historyHosts = [];
+foreach ($dbh->query(
+    'select distinct blog, substring(link from \'^https?://([^/:?#]+)\') as host from blog_entries'
+) as $row) {
+    $historyHosts[$row['blog']][] = link_host('http://' . $row['host']);
+}
+
+$holdStmt = $dbh->prepare(
+    'update blogs_real set held_reason = :reason, held_since = now() where id = :feed'
+);
 
 $entryStmt = $dbh->prepare(
     'insert into blog_entries
@@ -76,7 +94,8 @@ foreach ($feeds as $feed) {
         $rss = new \SimplePie\SimplePie();
         $rss->set_feed_url($feed->feedurl);
         $rss->enable_order_by_date(false);
-        $rss->enable_cache(false);
+        $rss->set_cache_location(CACHE_DIR);
+        $rss->set_cache_duration(CACHE_SECONDS);
         $rss->set_timeout(FEED_TIMEOUT);
 
         if (!$rss->init()) {
@@ -89,13 +108,46 @@ foreach ($feeds as $feed) {
         $newest = $lastupdate;
         $added = 0;
 
+        $knownHosts = array_merge(
+            [link_host($feed->feedurl), link_host($feed->url)],
+            array_map('link_host', array_map(fn($h) => "http://$h", str_getcsv(trim((string) $feed->allowed_hosts, '{}')))),
+            $historyHosts[$feed->id] ?? []
+        );
+
+        // Candidate new posts, split by whether they link somewhere this blog is known to live.
+        $fresh = [];
+        $foreign = [];
         foreach ($rss->get_items() as $item) {
             $pubtime = (int) $item->get_date('U');
             $link = $item->get_permalink();
             if ($pubtime <= $lastupdate || !$link) {
                 continue;  // already seen, undated, or no link to point at
             }
+            if (host_is_known(link_host($link), $knownHosts)) {
+                $fresh[] = [$item, $pubtime, $link];
+            } else {
+                $foreign[link_host($link)][] = $link;
+            }
+        }
 
+        if ($foreign && !$fresh) {
+            // Every new post points at an unfamiliar site: most likely the domain lapsed and the
+            // feed now redirects elsewhere (e.g. to WordPress.com's own blog). Hold, don't publish.
+            $hosts = array_keys($foreign);
+            $count = array_sum(array_map('count', $foreign));
+            $reason = sprintf('%d new post(s) link to %s; blog is known at %s',
+                $count, implode(', ', $hosts), implode(', ', array_unique(array_filter($knownHosts))) ?: '?');
+            $holdStmt->execute([':reason' => $reason, ':feed' => $feed->id]);
+            logline("HOLD  #{$feed->id} {$feed->name}: {$reason}");
+            eb_alert("Held feed #{$feed->id} **{$feed->name}**: {$reason}. Example: <" . reset($foreign)[0]
+                . ">. Review at https://evebloggers.com/admin.php");
+            continue;
+        }
+        foreach ($foreign as $host => $links) {
+            logline("SKIP  #{$feed->id} {$feed->name}: " . count($links) . " post(s) on unfamiliar host {$host}, e.g. {$links[0]}");
+        }
+
+        foreach ($fresh as [$item, $pubtime, $link]) {
             $title = plain_text((string) $item->get_title());
             $seenStmt->execute([
                 ':blog'      => $feed->id,

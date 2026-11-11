@@ -9,3 +9,6 @@
 
 # Local data backups
 /backups/
+
+# Feed fetch cache (SimplePie)
+/cache/

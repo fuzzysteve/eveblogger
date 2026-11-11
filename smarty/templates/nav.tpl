@@ -9,11 +9,15 @@
       <ul class="navbar-nav">
         <li class="nav-item"><a class="nav-link" href="/">Home</a></li>
         <li class="nav-item"><a class="nav-link" href="/recent.php">7 Day Page</a></li>
+        <li class="nav-item"><a class="nav-link" href="/blogs.php">All Blogs</a></li>
         <li class="nav-item"><a class="nav-link" href="/feed.php">7 Day Feed</a></li>
         <li class="nav-item"><a class="nav-link" href="/lite.php">7 Day Light Feed</a></li>
         <li class="nav-item"><a class="nav-link" href="/opml.php">OPML</a></li>
         <li class="nav-item"><a class="nav-link" href="/add.php">Add Blog</a></li>
       </ul>
+      <form class="d-flex ms-lg-auto mt-2 mt-lg-0" action="/search.php" method="get" role="search">
+        <input class="form-control form-control-sm" type="search" name="q" placeholder="Search posts" aria-label="Search posts">
+      </form>
     </div>
   </div>
 </nav>

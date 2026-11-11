@@ -11,7 +11,10 @@ feeds and shows their latest posts, plus combined RSS feeds and an OPML file.
 | `lib/bootstrap.php` | Reads `.env`, opens the PostgreSQL connection (`eb_db()`). |
 | `lib/site.php` | Blog listing and RSS feed rendering shared by the pages. |
 | `smarty/templates/` | Smarty templates. Output is HTML-escaped by default (`nofilter` opts out). |
-| `utils/loadblogentries.php` | Feed poller. `utils/run.sh` runs it from cron and logs to `logs/loader/`. |
+| `utils/loadblogentries.php` | Feed poller. `utils/run.sh` runs it from cron and logs to `logs/loader/`. Caches feeds in `cache/simplepie/` (conditional GET) and holds a blog whose new posts all link to an unfamiliar site (`lib/hosts.php`). |
+| `utils/healthcheck.php` | Hourly: alerts when the loader stops finishing runs, no posts arrive for 3 days, or submissions wait 3+ days. |
+| `lib/alert.php` | Posts alerts to Discord via the fuzzworkbot bot (`DISCORD_BOT_TOKEN`, `DISCORD_ALERT_CHANNEL`). |
+| `htdocs/admin.php` | Moderation: held feeds, pending submissions, failing feeds, blog statuses. Password hash in `ADMIN_PASSWORD_HASH`. |
 | `eveblogger.sql` | Schema (`pg_dump --schema-only`). |
 | `conf/apache/` | Copies of the live vhost (`/etc/apache2/sites-available/evebloggers.conf` + `evebloggers-site.inc`). |
 
@@ -50,11 +53,19 @@ Cron, e.g. twice an hour:
 
 ```
 15,45 * * * * /home/web/evebloggers/utils/run.sh
+50 * * * * /usr/bin/php /home/web/evebloggers/utils/healthcheck.php >> /home/web/evebloggers/logs/healthcheck.log 2>&1
+```
+
+Set the admin password with:
+
+```sh
+php -r 'echo password_hash(trim(fgets(STDIN)), PASSWORD_DEFAULT), "\n";'   # paste into .env as ADMIN_PASSWORD_HASH=
 ```
 
 ## Blog approval
 
-Submissions from `add.php` land in `blogs_real` with `approved = 0`.
+Submissions from `add.php` land in `blogs_real` with `approved = 0` and post an alert;
+approve or reject them in `admin.php`.
 
 | `approved` | Polled by the loader | Shown on the site |
 | --- | --- | --- |
@@ -62,3 +73,7 @@ Submissions from `add.php` land in `blogs_real` with `approved = 0`.
 | `1` | yes | yes |
 | `2` | no | yes (retired: dead feed, old posts kept) |
 | `-1` | yes | no |
+| `-2` | no | no (rejected submission / spam) |
+
+Independently of `approved`, the loader sets `held_reason` when a feed looks hijacked and stops
+polling it until it's trusted, retired or released in `admin.php`.

@@ -3,21 +3,21 @@ require __DIR__ . '/header.php';
 require __DIR__ . '/../smarty/smartyinclude.php';
 require __DIR__ . '/../lib/site.php';
 
-$smarty->setCacheLifetime(300);
-if (!$smarty->isCached('recent.tpl')) {
-    $stmt = eb_db()->query(<<<SQL
-        select e.link, e.title, e.author, e.description, b.name,
-               to_char(e."pubDate" at time zone 'UTC', 'HH24:MI DD-Mon-YY') as pubdate
-          from blog_entries e
-          join blogs b on b.id = e.blog
-         where e."pubDate" > now() - interval '7 days'
-         order by e."pubDate" desc
-        SQL);
-    $posts = [];
-    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
-        $row['link'] = safe_url($row['link']);
-        $posts[] = $row;
-    }
-    $smarty->assign('posts', $posts);
+$category = requested_category();
+if (isset($_GET['category']) && !$category) {
+    // Unknown tag: small uncached 404, so it can never land in the shared 'all' cache entry.
+    http_response_code(404);
+    $smarty->setCaching(Smarty\Smarty::CACHING_OFF);
+    $smarty->assign(['category' => null, 'unknown' => true, 'days' => 7, 'posts' => []]);
+    $smarty->display('recent.tpl');
+    exit;
 }
-$smarty->display('recent.tpl');
+$cacheId = $category ? 'cat' . $category[0] : 'all';
+
+$smarty->setCacheLifetime(300);
+if (!$smarty->isCached('recent.tpl', $cacheId)) {
+    $smarty->assign('category', $category[1] ?? null);
+    $smarty->assign('days', $category ? 90 : 7);
+    $smarty->assign('posts', recent_posts(eb_db(), $category ? 90 : 7, $category[0] ?? null));
+}
+$smarty->display('recent.tpl', $cacheId);
