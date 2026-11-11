@@ -53,6 +53,17 @@ $categoryStmt = $dbh->prepare(
 );
 $updateStmt = $dbh->prepare('update blogs_real set lastupdate = to_timestamp(:timestamp) where id = :feed');
 
+// The pre-2026 loader stored lastupdate truncated to the minute, and many blogs have since
+// moved http -> https or to a new domain, so a blog's latest known post can reappear with a
+// different link. Treat same link-ignoring-scheme, or same title within a minute, as seen.
+$seenStmt = $dbh->prepare(
+    'select 1 from blog_entries
+      where blog = :blog
+        and (regexp_replace(link, \'^https?://\', \'\') = :bare_link
+             or (title = :title and abs(extract(epoch from "pubDate") - :pubtime) < 60))
+      limit 1'
+);
+
 $totalAdded = 0;
 $failedFeeds = 0;
 
@@ -81,10 +92,24 @@ foreach ($feeds as $feed) {
                 continue;  // already seen, undated, or no link to point at
             }
 
+            $title = clean_title((string) $item->get_title());
+            $seenStmt->execute([
+                ':blog'      => $feed->id,
+                ':bare_link' => preg_replace('#^https?://#', '', $link),
+                ':title'     => $title,
+                ':pubtime'   => $pubtime,
+            ]);
+            $seen = $seenStmt->fetchColumn();
+            $seenStmt->closeCursor();
+            if ($seen) {
+                $newest = max($newest, $pubtime);
+                continue;
+            }
+
             $author = $item->get_author(0);
             try {
                 $entryStmt->execute([
-                    ':title'       => clean_title((string) $item->get_title()),
+                    ':title'       => $title,
                     ':guid'        => $link,
                     ':link'        => $link,
                     ':pubDate'     => $pubtime,
