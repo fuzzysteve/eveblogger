@@ -32,10 +32,11 @@ must be writable by the web server user.
 
 The site is served through Cloudflare. Apache needs `mod_remoteip` (real visitor IPs from
 `CF-Connecting-IP`), `mod_headers` and `mod_ssl`; see `conf/apache/`. The HTTPS vhost turns on
-once the origin certificate exists:
+once the origin certificate exists. It is issued and auto-renewed by acme.sh (root's daily
+cron); to set it up from scratch:
 
 ```sh
-/root/.acme.sh/acme.sh --issue --server letsencrypt -d evebloggers.com -d www.evebloggers.com \
+/root/.acme.sh/acme.sh --issue --server https://acme-v02.api.letsencrypt.org/directory -d evebloggers.com -d www.evebloggers.com \
     -w /home/web/evebloggers/htdocs
 /root/.acme.sh/acme.sh --install-cert -d evebloggers.com \
     --key-file       /home/web/conf/ssl/acmesh/evebloggers.com.key \
